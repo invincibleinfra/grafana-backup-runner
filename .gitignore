@@ -1,1 +1,3 @@
 /grafana-backup-runner
+/vendor/
+/.glide/

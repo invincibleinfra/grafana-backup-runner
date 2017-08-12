@@ -1,0 +1,3 @@
+package: github.com/invincibleinfra/grafana-backup-runner
+import:
+- package: gopkg.in/asaskevich/govalidator.v6
