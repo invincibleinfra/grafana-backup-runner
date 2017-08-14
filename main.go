@@ -4,11 +4,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/asaskevich/govalidator.v6"
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"strconv"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	"gopkg.in/asaskevich/govalidator.v6"
 )
 
 type DashboardSearchResult struct {
@@ -17,29 +22,23 @@ type DashboardSearchResult struct {
 	Uri   string `json:"uri"`
 }
 
-func httpGet(url string, result interface{}) error {
+func httpGet(url string) (*http.Response, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("Error retrieving dashboards from URL %v: %v", url, err)
+		return nil, fmt.Errorf("Error retrieving dashboards from URL %v: %v", url, err)
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Unexpected status code returned from Grafana API (got: %d, expected: 200, msg:%s)", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("Unexpected status code returned from Grafana API (got: %d, expected: 200, msg:%s)", resp.StatusCode, resp.Status)
 	}
-
-	err = json.NewDecoder(resp.Body).Decode(result)
-	if err != nil {
-		return fmt.Errorf("Error retrieving dashboards from URL %v: %v", url, err)
-	}
-	return nil
+	return resp, nil
 }
 
 func main() {
 	grafanaURL := flag.String("grafanaURL", "", "The URL of the grafana server to be backed up")
-	s3BucketURL := flag.String("s3BucketURL", "", "The URL of the S3 bucket where the backup should be stored")
+	s3Bucket := flag.String("s3Bucket", "", "The name of the S3 bucket where the backup should be stored")
 	flag.Parse()
 
-	if *grafanaURL == "" || *s3BucketURL == "" {
+	if *grafanaURL == "" || *s3Bucket == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -48,27 +47,48 @@ func main() {
 		log.Fatalf("Invalid grafanaURL: %v", *grafanaURL)
 	}
 
-	// validator cannot handle 's3://' type URLs
-	tmpS3BucketURL := strings.Replace(*s3BucketURL, "s3:", "http:", 1)
-	if !govalidator.IsURL(tmpS3BucketURL) {
-		log.Fatalf("Invalid s3BucketURL: %v", *s3BucketURL)
-	}
+	// S3 client
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	uploader := s3manager.NewUploader(sess)
 
 	getAllDashboardsURL := *grafanaURL + "/api/search"
 	searchResults := make([]DashboardSearchResult, 0)
-	err := httpGet(getAllDashboardsURL, &searchResults)
+	resp, err := httpGet(getAllDashboardsURL)
+	defer resp.Body.Close()
 	if err != nil {
-		log.Fatalf("Error in http request: %v", err)
+		log.Fatalf("Error retrieving dashboard list from URL %v: %v", getAllDashboardsURL, err)
+	}
+	err = json.NewDecoder(resp.Body).Decode(&searchResults)
+	if err != nil {
+		log.Fatalf("Error retrieving decoding response body: %v", err)
 	}
 
 	getDashBaseURL := *grafanaURL + "/api/dashboards/"
+
+	timeStr := time.Now().UTC().Format("2006-01-02T15:04:05-0700")
+	backupDir := "grafana-backup_" + timeStr + "/dashboards/"
 	for _, searchResult := range searchResults {
+		// retrieve dashboard
 		getDashURL := getDashBaseURL + searchResult.Uri
-		dashboardJSON := map[string]interface{}{}
-		err := httpGet(getDashURL, &dashboardJSON)
+		resp, err := httpGet(getDashURL)
 		if err != nil {
-			log.Fatalf("Error in http request: %v", err)
+			log.Fatalf("Error retrieving dashboard from URL %v: %v", getDashURL, err)
 		}
-		log.Printf("dashboard %v: %v", searchResult.Id, dashboardJSON)
+
+		//upload to S3
+		filename := backupDir + strconv.Itoa(searchResult.Id)
+		ui := &s3manager.UploadInput{
+			Bucket: s3Bucket,
+			Key:    &filename,
+			Body:   resp.Body,
+		}
+
+		_, err = uploader.Upload(ui)
+		if err != nil {
+			log.Fatalf("Error uploading dashboard json for dashboard from URL %v: %v", getDashURL, err)
+		}
+		resp.Body.Close()
 	}
 }
