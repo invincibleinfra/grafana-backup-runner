@@ -5,7 +5,7 @@ metadata:
   labels:
     app: grafana-backup-runner
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "@hourly"
   jobTemplate:
     spec:
       template:
