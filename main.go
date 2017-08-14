@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
@@ -48,18 +49,16 @@ func main() {
 	}
 
 	// S3 client
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess := session.Must(session.NewSession())
 	uploader := s3manager.NewUploader(sess)
 
 	getAllDashboardsURL := *grafanaURL + "/api/search"
 	searchResults := make([]DashboardSearchResult, 0)
 	resp, err := httpGet(getAllDashboardsURL)
-	defer resp.Body.Close()
 	if err != nil {
 		log.Fatalf("Error retrieving dashboard list from URL %v: %v", getAllDashboardsURL, err)
 	}
+	defer resp.Body.Close()
 	err = json.NewDecoder(resp.Body).Decode(&searchResults)
 	if err != nil {
 		log.Fatalf("Error retrieving decoding response body: %v", err)
@@ -91,4 +90,6 @@ func main() {
 		}
 		resp.Body.Close()
 	}
+
+	log.Printf("Backup to directory %v in bucket %v completed at %v", backupDir, s3Bucket, time.Now())
 }
