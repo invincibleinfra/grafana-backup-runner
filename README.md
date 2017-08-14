@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/invincibleinfra/grafana-backup-runner.svg?branch=master)](https://travis-ci.org/invincibleinfra/grafana-backup-runner)
 # Description
 
 This program backs up all grafana dashboards from a given server to S3.
