@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -83,13 +85,31 @@ func main() {
 			log.Fatalf("Error retrieving dashboard from URL %v: %v", getDashURL, err)
 		}
 
+		// we must awkwardly prune out the 'id' key
+		// as it interferes with restoring
+		dashBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalf("Error reading response from URL %v: %v", getDashURL, err)
+		}
+		dashJSON := make(map[string]interface{}, 0)
+		err = json.Unmarshal(dashBytes, &dashJSON)
+		if err != nil {
+			log.Fatalf("Error decoding JSON from URL %v: %v", getDashURL, err)
+		}
+		if dashboardValue, ok1 := dashJSON["dashboard"]; ok1 {
+			if dashboardValueAsMap, ok2 := dashboardValue.(map[string]interface{}); ok2 {
+				dashboardValueAsMap["id"] = nil
+			}
+		}
+		revisedDashBytes, err := json.Marshal(dashJSON)
+
 		// upload to S3
 		slug := strings.TrimPrefix(searchResult.Uri, "db/")
 		filename := backupDir + slug
 		ui := &s3manager.UploadInput{
 			Bucket: s3Bucket,
 			Key:    &filename,
-			Body:   resp.Body,
+			Body:   bytes.NewReader(revisedDashBytes),
 		}
 
 		_, err = uploader.Upload(ui)
