@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: grafana-backup-runner
-        image: invincibleinfra/grafana-backup-runner:latest
+        image: quay.io/invincibleinfra/grafana-backup-runner:v0.0.1
         imagePullPolicy: IfNotPresent
         env:
           - name: AWS_ACCESS_KEY_ID

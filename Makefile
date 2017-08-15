@@ -1,7 +1,8 @@
 REPO_URL = github.com/invincibleinfra/grafana-backup-runner
 
-
+REMOTE_REPOSITORY ?= quay.io/
 IMAGE_NAME=invincibleinfra/grafana-backup-runner
+TAG_NAME=$(shell git tag -l --points-at HEAD)
 
 # Build using golang docker container for reproducibility
 # this image also includes things we need like glide
@@ -18,4 +19,4 @@ build:
 		/bin/bash -c "glide install && go build -o grafana-backup-runner"
 
 image:
-	docker build -t $(IMAGE_NAME) .
+	docker build -t $(REMOTE_REPOSITORY)$(IMAGE_NAME):$(TAG_NAME) .
