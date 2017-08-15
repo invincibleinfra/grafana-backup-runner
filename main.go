@@ -84,7 +84,7 @@ func main() {
 		}
 
 		//upload to S3
-		filename := backupDir + strconv.Itoa(searchResult.Id)
+		filename := backupDir + strconv.Itoa(searchResult.Id) + "_" + searchResult.Title
 		ui := &s3manager.UploadInput{
 			Bucket: s3Bucket,
 			Key:    &filename,
