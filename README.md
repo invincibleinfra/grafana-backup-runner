@@ -16,7 +16,7 @@ The easiest way to test this program (on a computer with AWS CLI access configur
 ## Basic Testing
 
 ```
-./grafana-backup-runner -grafanaURL ${GRAFANA_URL} -s3Bucket ${S3_BUCKET_NAME}
+./grafana-backup-runner -grafanaURL ${GRAFANA_URL} -s3Bucket ${S3_BUCKET_NAME} -useSharedConfig
 ```
 
 ## Running on Kubernetes

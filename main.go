@@ -36,6 +36,7 @@ func httpGet(url string) (*http.Response, error) {
 func main() {
 	grafanaURL := flag.String("grafanaURL", "", "The URL of the grafana server to be backed up")
 	s3Bucket := flag.String("s3Bucket", "", "The name of the S3 bucket where the backup should be stored")
+	useSharedConfig := flag.Bool("useSharedConfig", false, "Controls whether to use the ~/.aws shared config")
 	flag.Parse()
 
 	if *grafanaURL == "" || *s3Bucket == "" {
@@ -48,7 +49,14 @@ func main() {
 	}
 
 	// S3 client
-	sess := session.Must(session.NewSession())
+	var sess *session.Session
+	if *useSharedConfig {
+		sess = session.Must(session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+		}))
+	} else {
+		sess = session.Must(session.NewSession())
+	}
 	uploader := s3manager.NewUploader(sess)
 
 	getAllDashboardsURL := *grafanaURL + "/api/search"
