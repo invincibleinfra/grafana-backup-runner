@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -83,8 +83,9 @@ func main() {
 			log.Fatalf("Error retrieving dashboard from URL %v: %v", getDashURL, err)
 		}
 
-		//upload to S3
-		filename := backupDir + strconv.Itoa(searchResult.Id) + "_" + searchResult.Title
+		// upload to S3
+		slug := strings.TrimPrefix(searchResult.Uri, "db/")
+		filename := backupDir + slug
 		ui := &s3manager.UploadInput{
 			Bucket: s3Bucket,
 			Key:    &filename,
@@ -98,5 +99,5 @@ func main() {
 		resp.Body.Close()
 	}
 
-	log.Printf("Backup to directory %v in bucket %v completed at %v", backupDir, s3Bucket, time.Now())
+	log.Printf("Backup to directory %v in bucket %v completed at %v", backupDir, *s3Bucket, time.Now())
 }
