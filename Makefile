@@ -20,3 +20,6 @@ build:
 
 image:
 	docker build -t $(REMOTE_REPOSITORY)$(IMAGE_NAME):$(TAG_NAME) .
+
+push:
+	docker push $(REMOTE_REPOSITORY)$(IMAGE_NAME):$(TAG_NAME)
